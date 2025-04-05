@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Statistics</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .stats-container {
+            margin-top: 20px;
+        }
+
+        .question-stats {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .question-stats h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .options-stats {
+            margin-top: 15px;
+        }
+
+        .option-stat {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+        }
+
+        .correct-option {
+            color: green;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
+        }
+
+        .summary {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .nav-links {
+            margin-bottom: 20px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-right: 15px;
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        .correct-answer-badge {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="nav-links">
+        <a href="/" class="nav-link">← Back to Quiz</a>
+        <a href="/summary" class="nav-link">View Participants</a>
+    </div>
+    <h1>Quiz Statistics</h1>
+
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Quiz Attempts: <span id="total-attempts">0</span></p>
+    </div>
+
+    <div id="stats-container" class="stats-container">
+        <!-- Statistics will be loaded here -->
+    </div>
+
+    <script>
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/statistics');
+                const stats = await response.json();
+
+                // Update total attempts
+                document.getElementById('total-attempts').textContent = stats.total_attempts;
+
+                // Display statistics for each question
+                const container = document.getElementById('stats-container');
+                container.innerHTML = '';
+
+                Object.entries(stats.question_stats).forEach(([qId, qStats]) => {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.className = 'question-stats';
+
+                    // Calculate percentages for each option
+                    const totalAnswers = Object.values(qStats.answer_counts).reduce((a, b) => a + b, 0);
+                    const correctPercentage = totalAnswers > 0
+                        ? (qStats.correct_count / totalAnswers * 100).toFixed(1)
+                        : 0;
+
+                    questionDiv.innerHTML = `
+                        <h3>${qStats.question} <span class="correct-answer-badge">Correct: ${qStats.correct_answer}</span></h3>
+                        <p>Correct Answers: ${qStats.correct_count} out of ${totalAnswers} (${correctPercentage}%)</p>
+                        <div class="options-stats">
+                            ${qStats.options.map(option => {
+                        const count = qStats.answer_counts[option] || 0;
+                        const percentage = totalAnswers > 0
+                            ? (count / totalAnswers * 100).toFixed(1)
+                            : 0;
+                        const isCorrect = option === qStats.correct_answer;
+
+                        return `
+                                    <div class="option-stat">
+                                        <div class="option-text ${isCorrect ? 'correct-option' : ''}">
+                                            ${option}${isCorrect ? ' (Correct Answer)' : ''}
+                                        </div>
+                                        <div>Selected ${count} times (${percentage}%)</div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: ${percentage}%"></div>
+                                        </div>
+                                    </div>
+                                `;
+                    }).join('')}
+                        </div>
+                    `;
+
+                    container.appendChild(questionDiv);
+                });
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        // Load statistics when the page loads
+        window.onload = loadStatistics;
+    </script>
+</body>
+
+</html>

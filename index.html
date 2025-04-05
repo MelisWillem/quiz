@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Quiz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .question {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .options {
+            margin-top: 10px;
+        }
+
+        .option {
+            margin: 5px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .score {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .correct-answer {
+            color: green;
+        }
+
+        .wrong-answer {
+            color: red;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .radio-label.correct,
+        .question.correct h3 {
+            color: green;
+        }
+
+        .radio-label.wrong,
+        .question.wrong h3 {
+            color: red;
+        }
+
+        .radio-label.correct input[type="radio"] {
+            accent-color: green;
+        }
+
+        .radio-label.wrong input[type="radio"] {
+            accent-color: red;
+        }
+
+        .user-form {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .user-form input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 200px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .nav-links {
+            margin-bottom: 20px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-right: 15px;
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        .submit-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .submit-button:hover {
+            background-color: #45a049;
+        }
+
+        .submit-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .submitted-message {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="nav-links">
+        <a href="/results" class="nav-link">View Statistics</a>
+        <a href="/summary" class="nav-link">View Participants</a>
+    </div>
+    <h1>Simple Quiz</h1>
+
+    <!-- User Information Form -->
+    <div id="user-form" class="user-form">
+        <h2>Please enter your information</h2>
+        <div>
+            <input type="text" id="firstName" placeholder="First Name" required>
+        </div>
+        <div>
+            <input type="text" id="lastName" placeholder="Last Name" required>
+        </div>
+        <button onclick="startQuiz()">Start Quiz</button>
+    </div>
+
+    <!-- Quiz Container -->
+    <div id="quiz-section" class="hidden">
+        <div id="quiz-container"></div>
+        <button id="submit-button" class="submit-button" onclick="submitQuiz()">Submit Quiz</button>
+        <div id="submitted-message" class="submitted-message hidden">Quiz submitted! Your answers have been recorded.
+        </div>
+        <div id="score" class="score"></div>
+    </div>
+
+    <script>
+        let questions = [];
+        let hasSubmitted = false;
+        let userInfo = {};
+
+        // Start quiz after user info is submitted
+        function startQuiz() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+
+            if (!firstName || !lastName) {
+                alert('Please enter both first and last name');
+                return;
+            }
+
+            userInfo = {
+                firstName: firstName,
+                lastName: lastName
+            };
+
+            document.getElementById('user-form').classList.add('hidden');
+            document.getElementById('quiz-section').classList.remove('hidden');
+            loadQuestions();
+        }
+
+        // Fetch questions from the server
+        async function loadQuestions() {
+            try {
+                const response = await fetch('/questions');
+                const data = await response.json();
+                questions = data.questions;
+                displayQuestions();
+            } catch (error) {
+                console.error('Error loading questions:', error);
+            }
+        }
+
+        // Display questions on the page
+        function displayQuestions() {
+            const container = document.getElementById('quiz-container');
+            questions.forEach(question => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.innerHTML = `
+                    <h3>${question.question}</h3>
+                    <div class="options">
+                        ${question.options.map(option => `
+                            <div class="option">
+                                <label class="radio-label">
+                                    <input type="radio" name="q${question.id}" value="${option}" id="q${question.id}_${option}">
+                                    ${option}
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(questionDiv);
+            });
+        }
+
+        // Submit quiz answers
+        async function submitQuiz() {
+            if (hasSubmitted) return;
+
+            const submitButton = document.getElementById('submit-button');
+            submitButton.disabled = true;
+
+            const answers = {};
+            questions.forEach(question => {
+                const selected = document.querySelector(`input[name="q${question.id}"]:checked`);
+                if (selected) {
+                    answers[question.id] = selected.value;
+                }
+            });
+
+            try {
+                const response = await fetch('/check_answers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        answers: answers,
+                        user_info: userInfo
+                    }),
+                });
+                const results = await response.json();
+                displayResults(results);
+                hasSubmitted = true;
+
+                // Show submitted message
+                document.getElementById('submitted-message').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error submitting answers:', error);
+                // Re-enable button if there was an error
+                submitButton.disabled = false;
+            }
+        }
+
+        // Display results
+        function displayResults(results) {
+            // Update score
+            document.getElementById('score').textContent = `Score: ${results.score} out of ${results.total}`;
+
+            // Update each question's radio buttons
+            results.results.forEach(result => {
+                const questionId = result.id;
+                const questionDiv = document.querySelector(`.question:has(input[name="q${questionId}"])`);
+                const options = document.querySelectorAll(`input[name="q${questionId}"]`);
+
+                // Add correct/wrong class to the question div
+                questionDiv.classList.remove('correct', 'wrong');
+                if (result.is_correct) {
+                    questionDiv.classList.add('correct');
+                } else {
+                    questionDiv.classList.add('wrong');
+                }
+
+                options.forEach(option => {
+                    const label = option.parentElement;
+                    label.classList.remove('correct', 'wrong');
+
+                    if (option.value === result.correct_answer) {
+                        label.classList.add('correct');
+                    } else if (option.value === result.user_answer) {
+                        label.classList.add('wrong');
+                    }
+
+                    // Disable all radio buttons after submission
+                    option.disabled = true;
+                });
+            });
+        }
+    </script>
+</body>
+
+</html>
